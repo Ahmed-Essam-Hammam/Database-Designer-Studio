@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+
+# Environment files (secrets injected via GitHub Actions / Container App env vars)
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# GitHub Actions (not needed inside the container)
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads and generated files
+uploads/
+charts/
+
+# Streamlit local config
+.streamlit/
+
+# Docs
+README.md
