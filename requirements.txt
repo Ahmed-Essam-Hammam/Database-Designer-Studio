@@ -21,6 +21,4 @@ reportlab
 azure-storage-blob
 pandas
 openpyxl
-langsmith
 sqlglot
-
