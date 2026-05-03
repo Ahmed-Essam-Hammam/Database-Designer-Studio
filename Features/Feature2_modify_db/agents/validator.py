@@ -13,79 +13,29 @@ from ..utils.db_utils import validate_sql_syntax
 
 
 
-_SYSTEM_PROMPT = """You are an expert database engineer tasked with generating precise, safe SQLite modification plans.
+_SYSTEM_PROMPT = """You are a senior database architect performing a critical review of a proposed database modification plan.
  
 You will receive:
 1. The current database schema
-2. The user's modification request
-3. Clarification Q&A (if any)
-4. Validator feedback (if this is a refinement iteration)
-5. Modification history so far
+2. The user's original modification request
+3. The proposed modification plan (description + SQL statements)
+4. Syntax validation result from a live dry-run
  
-Your output MUST be valid JSON with this exact structure:
+Your task: determine if the plan is APPROVED or needs REVISION.
+
+Check for:
+- Correctness: Does the SQL actually implement what the user asked?
+- Completeness: Are all parts of the request covered?
+- Compatibility: Is the SQL valid SQLite syntax and schema-consistent?
+
+
+Respond ONLY with valid JSON:
 {
-  "description": "Plain-English summary of what will be changed and why",
-  "sql_statements": [
-    "SQL statement 1;",
-    "SQL statement 2;"
-  ],
-  "warnings": ["Any important warnings about data loss, irreversibility, etc."]
-}
- 
-CRITICAL JSON FORMATTING RULES:
-- Every string value MUST be delimited with double-quote characters (")
-- NEVER use backslash-escaped quotes (\\") as string delimiters inside the JSON
-- Multi-line SQL must be written as a single line — replace any real newlines inside SQL strings with a space
-- Do NOT use \\n inside JSON string values; keep each SQL statement on one line
-- Each element of sql_statements must be a single, self-contained SQL string ending with a semicolon
- 
-SQL RULES:
-- Generate ONLY valid SQLite SQL
-- Order statements correctly (create tables before adding FK references, etc.)
-- Use IF NOT EXISTS / IF EXISTS where appropriate to make statements idempotent
-- Preserve all existing data unless the user explicitly asked to delete something
-- For ALTER TABLE: SQLite only supports ADD COLUMN and RENAME – use CREATE TABLE + data copy pattern for other changes
-- Include PRAGMA foreign_keys = ON; at the start if any FK changes are involved
-- Each SQL string must end with a semicolon
-- Do NOT include any explanation outside the JSON
-- Do NOT include bare BEGIN / COMMIT / ROLLBACK statements — transaction control is handled externally
-
-DEDUPLICATION RULES (DELETE duplicates, keep one row per group):
-- To identify rows to REMOVE, always use this pattern:
-    WHERE <pk_col> NOT IN (
-      SELECT MIN(<pk_col>) FROM <table> GROUP BY <dup_col1>, <dup_col2>
-    )
-- NEVER put the primary key column inside GROUP BY when finding duplicates — 
-  it is unique by definition so COUNT(*) will never exceed 1.
-- NEVER combine GROUP BY with HAVING COUNT(*) > 1 AND <pk> NOT IN (...) 
-  in the same subquery — these are mutually exclusive conditions.
-- Apply the same NOT IN subquery consistently to UPDATE (nulling FK refs), 
-  DELETE from child tables, and DELETE from the main table.
-
-SELF-CHECK RULE:
-Before writing your final JSON output, mentally trace through each subquery:
-- "Will this subquery actually return the rows I intend?"
-- "Is every column referenced in WHERE/HAVING present in GROUP BY or an aggregate?"
-- "Would this accidentally match zero rows or all rows?"
-If any answer is uncertain, rewrite the subquery using a simpler, more explicit pattern.
-
-TABLE MIGRATION RULES (CREATE new + copy data + DROP old + RENAME):
-- Before dropping a table, inspect the schema for any VIEWS that reference it.
-  Drop every such view with DROP VIEW IF EXISTS <name>; BEFORE the DROP TABLE statement.
-  After the RENAME, recreate every dropped view using its original SQL, updated to
-  reference the new column names if they changed.
-- Also check for other tables whose FOREIGN KEY references the table being dropped.
-  Disable FK enforcement with PRAGMA foreign_keys = OFF; at the very start and
-  re-enable with PRAGMA foreign_keys = ON; at the very end.
-- Correct statement order for a table migration:
-    1. PRAGMA foreign_keys = OFF;
-    2. DROP VIEW IF EXISTS <dependent_view>;  (one per dependent view)
-    3. CREATE TABLE <new_table> (...);
-    4. INSERT INTO <new_table> SELECT ... FROM <old_table>;
-    5. DROP TABLE <old_table>;
-    6. ALTER TABLE <new_table> RENAME TO <old_table>;
-    7. CREATE VIEW <dependent_view> AS ...;  (one per dropped view, updated SQL)
-    8. PRAGMA foreign_keys = ON;"""
+  "approved": true | false,
+  "issues": ["issue1", "issue2"],
+  "feedback": "Detailed instructions for the modifier to fix the plan (empty if approved)",
+  "confidence": "high | medium | low"
+}"""
 
 
 def run_validator(state: GraphState) -> dict:
