@@ -216,8 +216,8 @@ build_schema_context
 retrieve_fewshots
         │
         ├──(analytical + complex)──► optional_decompose_query ──┐
-        │                                                        │
-        └────────────────────────────────────────────────────────┘
+        │                                                       │
+        └───────────────────────────────────────────────────────┘
         ▼
 generate_sql
         │
@@ -550,9 +550,9 @@ ENTRY
   │                                                              ▼
   ├──(Upload & Modify)──────► EMPTY ──(file ingested)──────► DB_READY
   │                                                              │
-  │                                                   ┌──────────┴──────────┐
-  └──(Connect & Chat)───────► EMPTY ──(connected)──┐  │                     │
-                                                    │  ▼                     ▼
+  │                                                      ┌───────┴───────────┐
+  └──(Connect & Chat)───────► EMPTY ──(connected)───┐    │                   │
+                                                    │    ▼                   ▼
                                                     └► QUERY_READY      MODIFIED
                                                               │              │
                                                               └──────────────┘
@@ -691,21 +691,3 @@ This gate is enforced at the `orchestrator.py` level via an `ApprovalRequired` e
 After the Modifier and Validator produce an approved SQL plan, the UI displays the full plan (description, SQL statements, warnings) before execution. The user must explicitly approve before the Executor node runs. If the user requests changes, natural-language feedback is injected back into the Modifier node.
 
 A `REQUIRE_HUMAN_APPROVAL` flag in Feature 3 (default: `false`) can require explicit approval before executing any generated SQL query.
-
----
-
-## Known Limitations & Notes
-
-- **SQLite only** — All database files are SQLite `.db` files. PostgreSQL and other engines are not currently supported for execution (though SQL generation prompts use PostgreSQL syntax for the query generator in Feature 1; the executor and validator always target SQLite).
-
-- **Azure OpenAI required** — The application is wired exclusively to Azure OpenAI. Switching to standard OpenAI or other providers requires modifying `shared/config.py` and replacing `AzureChatOpenAI` / `AzureOpenAIEmbeddings` throughout.
-
-- **Azure Blob Storage required** — Workspace persistence and database storage require a configured Azure Storage account. The app degrades gracefully (skips blob operations) when `AZURE_STORAGE_CONNECTION_STRING` is empty, but workspace state will not persist across sessions.
-
-- **Stateless serverless** — Each Streamlit session writes temporary SQLite files to `/tmp`. On Azure App Service with multiple instances, the same workspace ID could be served by different instances with different local file states. The app mitigates this by always syncing from blob storage on workspace load.
-
-- **No authentication layer** — There is no built-in user authentication. For production use, consider placing the app behind Azure AD authentication (via Azure App Service's built-in auth) or adding a Streamlit-compatible auth layer.
-
-- **Multilingual input** — The Requirement Analyzer (Feature 1) explicitly supports Arabic and English input. Other features are English-only.
-
-- **LLM JSON robustness** — The Feature 2 Modifier includes a 3-strategy JSON repair pipeline for LLM outputs that contain malformed JSON (escaped quotes, literal newlines in strings). Other agents use LangChain's `JsonOutputParser` which has its own fault tolerance.
