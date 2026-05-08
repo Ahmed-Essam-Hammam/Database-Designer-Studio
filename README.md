@@ -477,7 +477,7 @@ REQUIRE_HUMAN_APPROVAL=false         # Require explicit approval before SQL exec
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url>
+git clone https://github.com/Ahmed-Essam-Hammam/Database-Designer-Studio.git
 cd Database-Designer-Studio-main
 
 # 2. Create and activate a virtual environment
